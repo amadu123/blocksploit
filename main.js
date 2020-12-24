@@ -13,7 +13,7 @@ var settings = {
     noCameraShake: false,
     changeWeapon: false,
 };
-window.settings = settings;
+//window.settings = settings;
 
 var aimbot = {
     enabled: false,
@@ -49,7 +49,7 @@ var camLookAt = function(entity) {
     };
 };
 
-window.camLookAt = camLookAt;
+//window.camLookAt = camLookAt;
 
 var getD3D = function(a, b, c, d, e, f) {
     let g = a - d, h = b - e, i = c - f;
@@ -213,7 +213,7 @@ function createGui() {
 };
 
 var GUI = createGui();
-window.gui = GUI;
+//window.gui = GUI;
 GUI.Toast('Join our Discord: discord.gg/hRpPrN3');
 
 // FPS counter
