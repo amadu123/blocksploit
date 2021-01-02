@@ -3,8 +3,11 @@
 var settings = {
     FPS: true,
     ESP: true,
+    ESPBox: false,
     traces: false,
     speedHack: 0,
+    blink: false,
+    invisible: false,
     noCooldown: false,
     megaDamage: false,
     infJump: false,
@@ -25,7 +28,14 @@ var aimbot = {
     focus: false,
     offset: 0,
 };
+
 //window.aimbot = aimbot;
+
+var vals = {
+    lastPos: false,
+};
+
+window.vals = vals;
 
 Object.keys(localStorage).map(key => {
     if (key.startsWith('bs_') && localStorage[key] !== void 0) {
@@ -37,7 +47,7 @@ Object.keys(localStorage).map(key => {
 });
 
 function saveLoop() {
-    Object.keys(settings).map(key=>localStorage['bs_'+key]=settings[key]);
+    Object.keys(settings).map(key=>key!='blink'&&(localStorage['bs_'+key]=settings[key]));
     Object.keys(aimbot).map(key=>localStorage['bsa_'+key]=aimbot[key]);
     //setTimeout(()=>requestAnimationFrame(saveLoop),1000); // Anti lags
 }
@@ -60,6 +70,49 @@ var getD3D = function(a, b, c, d, e, f) {
 var getXDire = function(a, b, c, d, e, f) {
     let g = Math.abs(b - e), h = getD3D(a, b, c, d, e, f);
     return Math.asin(g / h) * (b > e ? -1 : 1);
+};
+
+function renderBox(x=0,y=0,z=0,w=1,h=5,c=new pc.Color(1, 1, 1)) {
+    var a,b;
+
+    a = new pc.Vec3(x-w,y, z-w)
+    b = new pc.Vec3(x-w, y+h, z-w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x+w, y, z+w)
+    b = new pc.Vec3(x+w, y+h, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x-w, y, z+w)
+    b = new pc.Vec3(x-w, y+h, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x+w, y, z-w)
+    b = new pc.Vec3(x+w, y+h, z-w)
+    pc.Application.getApplication().renderLine(a,b,c);
+
+    a = new pc.Vec3(x+w, y+h, z+w)
+    b = new pc.Vec3(x-w, y+h, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x+w, y+h, z-w)
+    b = new pc.Vec3(x+w, y+h, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x-w, y+h, z-w)
+    b = new pc.Vec3(x+w, y+h, z-w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x-w, y+h, z-w)
+    b = new pc.Vec3(x-w, y+h, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+
+    a = new pc.Vec3(x+w, y, z+w)
+    b = new pc.Vec3(x-w, y, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x+w, y, z-w)
+    b = new pc.Vec3(x+w, y, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x-w, y, z-w)
+    b = new pc.Vec3(x+w, y, z-w)
+    pc.Application.getApplication().renderLine(a,b,c);
+    a = new pc.Vec3(x-w, y, z-w)
+    b = new pc.Vec3(x-w, y, z+w)
+    pc.Application.getApplication().renderLine(a,b,c);
 };
 
 function createGui() {
@@ -130,6 +183,18 @@ function createGui() {
     },{folder: 'Player'});
     gui.Register({
         type: 'checkbox',
+        label: 'Blink [B]',
+        object: settings,
+        property: 'blink',
+    },{folder: 'Player'});
+    gui.Register({
+        type: 'checkbox',
+        label: 'Invisible',
+        object: settings,
+        property: 'invisible',
+    },{folder: 'Player'});
+    gui.Register({
+        type: 'checkbox',
         label: 'No Cooldown',
         object: settings,
         property: 'noCooldown',
@@ -151,6 +216,12 @@ function createGui() {
         label: 'FPS',
         object: settings,
         property: 'FPS',
+    },{folder: 'Misc'});
+    gui.Register({
+        type: 'checkbox',
+        label: 'ESP Box',
+        object: settings,
+        property: 'ESPBox',
     },{folder: 'Misc'});
     gui.Register({
         type: 'checkbox',
@@ -227,6 +298,21 @@ function updateFPS() {
     //requestAnimationFrame(loop);
 }
 
+
+(function setupKeys() {
+    document.addEventListener('keydown', e => {
+        if ("INPUT" === document.activeElement.tagName) return;
+        switch(e.key.toLowerCase()) {
+            case 'b':
+                settings.blink = !settings.blink;
+                break;
+            default:
+                break;
+        };
+    });
+})();
+
+
 var made = {
     ads: !1,
     patch: !1
@@ -272,6 +358,25 @@ function patchCode() {
             return plrinit.apply(this,arguments);
         };
         VengeGuard.prototype.onCheck=_=>pc.app.fire("Network:Guard",!0);
+
+        Player.prototype.setPosition = function() {
+            //if (this.currentDate - this.lastPositionUpdate < 30) return !1;
+            var t = this.entity.getPosition().clone()
+            if (settings.invisible) t.y += (pc.controls.player.movement.leftMouse ? 0 : 1000);
+            var e = this.movement.lookX % 360
+            , a = this.movement.lookY % 360;
+            if (!settings.blink && vals.lastPos) vals.lastPos = null;
+            else if (settings.blink && !vals.lastPos) vals.lastPos = [t.x, t.y, t.z, e, a];
+            if (settings.blink && vals.lastPos) {
+                this.app.fire("Network:Position", vals.lastPos[0], vals.lastPos[1], vals.lastPos[2], vals.lastPos[3], vals.lastPos[4]);
+                renderBox(vals.lastPos[0],vals.lastPos[1]-2.5,vals.lastPos[2],1,5,new pc.Color(0,0,1));
+                pc.Application.getApplication().renderLine(new pc.Vec3(vals.lastPos[0], vals.lastPos[1], vals.lastPos[2]),new pc.Vec3(t.x,t.y,t.z),new pc.Color(0,0,1));
+            } else {
+                this.app.fire("Network:Position", t.x, t.y, t.z, e, a);
+            };
+            this.lastPositionUpdate = this.currentDate;
+        };
+
         Enemy.prototype.damage=function(t,i,e){var a,r,s,n=!1;e&&.9<e.y&&(n=!0),this.damageAngle=Utils.lookAt(0,0,e.x,e.z),this.skinMaterial&&(this.skinMaterial.emissiveIntensity=.65,this.skinMaterial.update()),this.tempAngle.x+=3*Math.random()-3*Math.random(),this.tempAngle.y+=2*Math.random()-2*Math.random(),this.isActivated||(clearTimeout(this.skinMaterialTimer),this.skinMaterialTimer=setTimeout(function(i){var t=pc.app.tween(i.skinMaterial).to({emissiveIntensity:0},.15,pc.Linear);t.on("update",function(t){i.skinMaterial.update()}),t.start()},50,this),a=Math.round(2*Math.random())+1,r=this.skin+"-Grunt-"+a,s=!0,"TDM"!=pc.currentMode&&"PAYLOAD"!=pc.currentMode||pc.currentTeam==this.team&&(s=!1,this.app.fire("Overlay:FriendlyFire",!0)),s&&(this.app.fire("Hit:Point",this.entity,Math.floor(20*Math.random())+5),this.entity.sound.play(r),n&&this.app.fire("Hit:Headshot",this.entity,Math.floor(20*Math.random())+5)),this.lastDamage=Date.now(),"TDM"!=pc.currentMode&&"PAYLOAD"!=pc.currentMode||this.app.fire("Outline:Add",this.characterEntity)),settings.megaDamage?(this.app.fire("Network:Damage",t,99.99999,n,this.playerId),this.app.fire("Network:Damage",t,99.99999,n,this.playerId)):this.app.fire("Network:Damage",t,i,n,this.playerId)};
         Label.prototype.update=function(e){if(!this.isInitalized)return!1;if(!this.isEnabled)return this.labelEntity&&(this.labelEntity.enabled=!1),!1;if(!pc.isSpectator&&!settings.ESP){if(this.player.isDeath)return this.labelEntity.enabled=!1;if(1500<Date.now()-this.player.lastDamage){if(pc.currentTeam!=this.team||"PAYLOAD"!=pc.currentMode&&"TDM"!=pc.currentMode)return this.labelEntity.enabled=!1;this.labelEntity.enabled=!0}}this.updateTeamColor();var t=new pc.Vec3,i=this.currentCamera,a=this.app.graphicsDevice.maxPixelRatio,s=this.screenEntity.screen.scale,n=this.app.graphicsDevice;i.worldToScreen(this.headPoint.getPosition(),t),t.x*=a,t.y*=a,0<t.x&&t.x<this.app.graphicsDevice.width&&0<t.y&&t.y<this.app.graphicsDevice.height&&0<t.z?(this.labelEntity.setLocalPosition(t.x/s,(n.height-t.y)/s,0),this.labelEntity.enabled=!0):this.labelEntity.enabled=!1};
         Movement.prototype.triggerKeyF=function(){if(!settings.noCooldown)return this.now()-this.lastThrowDate<1e3*this.playerAbilities.throwCooldown?(this.entity.sound.play("Error"),!1):!(this.isReloading>this.timestamp)&&!(this.playerAbilities.isHitting>this.timestamp)&&(this.isFocusing=!1,this.player.throw(),this.stopFiring(),this.playerAbilities.triggerKeyF(),void(this.lastThrowDate=this.now()));this.player.throw(),this.playerAbilities.triggerKeyF()};
@@ -280,23 +385,29 @@ function patchCode() {
         Movement.prototype.setShooting=function(t){if(!this.isMouseLocked)return!1;if(!this.currentWeapon.isShootable&&!settings.rapidFire)return!1;if(this.leftMouse||this.isShootingLocked||this.isFireStopped||(this.stopFiring(),0===this.currentWeapon.ammo&&this.reload()),this.leftMouse&&!this.isShootingLocked&&(settings.infAmmo||0<this.currentWeapon.ammo?this.isShooting=(settings.rapidFire?1e-7:this.currentWeapon.shootTime)+this.timestamp:this.reload()),this.player.checkShooting(),this.isShooting>this.timestamp&&!this.isShootingLocked){settings.infAmmo&&this.setAmmoFull();var i=settings.noRecoil?0:this.currentWeapon.recoil,e=settings.noCameraShake?0:this.currentWeapon.cameraShake,a=.03*Math.random()-.03*Math.random(),n=-.15*i,s=6*i,o=-1.2,r=2,h=settings.noSpread?0:this.currentWeapon.spread,p=Math.cos(110*this.spreadCount),c=settings.noSpread?0:this.currentWeapon.spread*p;this.cancelInspect(!0),this.setShootDirection(),this.isFocusing&&"Rifle"==this.currentWeapon.type&&(n=-.05,o=-.2,e*=s=.5,r=.05,h=settings.noSpread?0:this.currentWeapon.focusSpread,c=settings.noSpread?0:this.currentWeapon.focusSpread*p),"Sniper"!=this.currentWeapon.type&&"Shotgun"!=this.currentWeapon.type||(this.spreadNumber=settings.noSpread?0:this.currentWeapon.spread,this.isFocusing&&(this.spreadNumber=settings.noSpread?0:this.currentWeapon.focusSpread),o=-5,r=5.2),this.currentWeapon.shoot();var m=this.currentWeapon.bulletPoint.getPosition().clone(),u=this.currentWeapon.bulletPoint.getEulerAngles().clone();"Sniper"==this.currentWeapon.type&&this.isFocusing||(this.app.fire("EffectManager:Bullet",m,u),this.entity.script.weaponManager.triggerShooting());var d=this.currentWeapon.muzzlePoint.getPosition().clone(),l=this.raycastShootFrom,g=Math.random()*this.spreadNumber-Math.random()*this.spreadNumber,S=Math.random()*this.spreadNumber-Math.random()*this.spreadNumber,f=Math.random()*this.spreadNumber-Math.random()*this.spreadNumber,b=this.raycastTo.clone().add(new pc.Vec3(g,S,f)),M=this.currentWeapon.damage,W=this.currentWeapon.distanceMultiplier;if("Shotgun"==this.currentWeapon.type){this.app.fire("EffectManager:Fire",l,b,d,this.player.playerId,M,"Shotgun",W);for(var y=0;y<6;y++)g=Math.cos(y/3*Math.PI)*this.spreadNumber,S=Math.sin(y/3*Math.PI)*this.spreadNumber,f=Math.cos(y/3*Math.PI)*this.spreadNumber,b=this.raycastTo.clone().add(new pc.Vec3(g,S,f)),this.app.fire("EffectManager:Fire",l,b,d,this.player.playerId,M,"Shotgun",W)}else this.app.fire("EffectManager:Fire",l,b,d,this.player.playerId,M);this.lookY+=.04*e,this.spreadNumber=pc.math.lerp(this.spreadNumber,h,.4),this.spreadCount+=t,this.currentWeapon.ammo--,this.app.fire("Overlay:Shoot",!0),this.app.tween(this.animation).to({bounceX:a,bounceZ:n,bounceAngle:s,shootSwing:r},.03,pc.BackOut).start(),this.app.tween(this.animation).to({cameraShootBounce:o,cameraBounce:this.animation.cameraBounce+.025*e},.09,pc.BackOut).start(),this.animation.activeBounce=pc.math.lerp(this.animation.activeBounce,-e,.05),this.animation.horizantalSpread=pc.math.lerp(this.animation.horizantalSpread,.04*c,.1),this.isShootingLocked=!0,this.isFireStopped=!1}this.isShooting<this.timestamp&&this.isShootingLocked&&(this.isShootingLocked=!1),this.isShooting>this.timestamp+.1&&(this.animation.jumpAngle=pc.math.lerp(this.animation.jumpAngle,0,.2)),this.animation.fov=pc.math.lerp(this.animation.fov,0,.1),this.animation.bounceX=pc.math.lerp(this.animation.bounceX,0,.3),this.animation.bounceZ=pc.math.lerp(this.animation.bounceZ,0,.1),this.animation.bounceAngle=pc.math.lerp(this.animation.bounceAngle,0,.2),this.animation.shootSwing=pc.math.lerp(this.animation.shootSwing,0,.01),this.animation.activeBounce=pc.math.lerp(this.animation.activeBounce,0,.1),this.animation.cameraShootBounce=pc.math.lerp(this.animation.cameraShootBounce,0,.1),this.animation.cameraBounce=pc.math.lerp(this.animation.cameraBounce,0,.1),this.animation.cameraImpact=pc.math.lerp(this.animation.cameraImpact,0,.1),this.spreadNumber=pc.math.lerp(this.spreadNumber,0,.2),this.animation.horizantalSpread=pc.math.lerp(this.animation.horizantalSpread,0,.01)};
     } catch(e) {};
     console.log('Code Patched!');
-    //window.hooks = hooks;
+    window.hooks = hooks;
     return hooks;
 };
 
 requestAnimationFrame(function mainLoop() {
+    window.target = aimbot.target;
     requestAnimationFrame(saveLoop);
     requestAnimationFrame(updateFPS);
     (function() {
         try {
             settings.changeWeapon&&(hooks.player.lastWeaponChange = 0);
-            if (settings.traces && hooks.network) {
+            if (hooks.network) {
                 hooks.network.players.forEach(t => {
                     if (-1 !== t.script.enemy.playerId && !t.script.enemy.isDeath) {
                         let e = pc.controls.player.entity.getPosition();
                         let o = t.getPosition();
                         let c = t.script.enemy.team == hooks.network.team && "none" !== t.script.enemy.team ? new pc.Color(0, 1, 0) : new pc.Color(1, 0, 0);
-                        pc.Application.getApplication().renderLine(new pc.Vec3(e.x, e.y, e.z), new pc.Vec3(o.x, o.y, o.z),c);
+                        if (settings.traces) {
+                            pc.Application.getApplication().renderLine(new pc.Vec3(e.x, e.y, e.z), new pc.Vec3(o.x, o.y, o.z),c);
+                        };
+                        if (settings.ESPBox) {
+                            renderBox(o.x,o.y-2.5,o.z,1,5,c)
+                        };
                     }
                 })
             }
