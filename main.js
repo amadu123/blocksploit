@@ -1,3 +1,5 @@
+// Do not copy or next my hack will be undecodable !
+
 var settings = {
     FPS: true,
     ESP: true,
